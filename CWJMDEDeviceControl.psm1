@@ -1,8 +1,47 @@
+function New-CWJMdeDcReusableSettingsMatchTypeEntry
+{
+    param(
+        [Parameter(Mandatory=1)]
+        [ValidateSet('MatchAny', 'MatchAll')]
+        $MatchType
+    )
+
+    $global:MatchTypeEntryTemplate=@'
+{
+  "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingInstance",
+  "settingDefinitionId": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype",
+  "choiceSettingValue": {
+    "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingValue",
+    "value": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchany",
+    "children": []
+  }
+}
+'@
+
+    $global:MatchTypeEntry = ConvertFrom-Json $MatchTypeEntryTemplate
+
+    if($MatchType -eq 'MatchAny')
+    {
+        $value = 'device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchany'
+    }
+    elseif($MatchType -eq 'MatchAll')
+    {
+        $value = 'device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchall'
+    }
+
+    $MatchTypeEntry.choiceSettingValue.value = $value
+    
+    return $MatchTypeEntry
+}
+
+
+
+
 function New-CWJReusableSettings
 {
 
 a
-$global:ReusablePolicySettingsTemplate = @'
+$ReusablePolicySettingsTemplate = @'
 {
   "displayName": "<<<DISPLAYNAME>>>",
   "description": "<<<DESCRIPTION>>>",
@@ -22,21 +61,10 @@ $global:ReusablePolicySettingsTemplate = @'
 }
 '@
 
-$global:ReusablePolicySettings = ConvertFrom-Json $ReusablePolicySettingsTemplate
+$ReusablePolicySettings = ConvertFrom-Json $ReusablePolicySettingsTemplate
 
-$global:MatchTypeTemplate=@'
-{
-  "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingInstance",
-  "settingDefinitionId": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype",
-  "choiceSettingValue": {
-    "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingValue",
-    "value": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchany",
-    "children": []
-  }
-}
-'@
 
-$global:MatchType = ConvertFrom-Json $MatchTypeTemplate
+
 
 $global:DescriptorIdListTemplate=@'
 {
@@ -69,7 +97,9 @@ $global:DescriptorIdListTemplate=@'
 
 $global:ReusablePolicySettingsChildren = [System.Collections.ArrayList]::new() #TODO:not a great name
 
-[void]$ReusablePolicySettingsChildren.Add($MatchType)
+$MdeDcReusableSettingsMatchTypeEntry = New-CWJMdeDcReusableSettingsMatchTypeEntry -MatchType MatchAny
+
+[void]$ReusablePolicySettingsChildren.Add($MdeDcReusableSettingsMatchTypeEntry)
 
 1..2|%{
     $global:DescriptorIdList = ConvertFrom-Json $DescriptorIdListTemplate
@@ -82,7 +112,7 @@ $reusablePolicySettings.settingInstance.groupSettingCollectionValue[0].children 
 
 $global:reusablePolicySettingsJson = ConvertTo-Json $reusablePolicySettings -Depth 10
 
-Invoke-MgGraphRequest -Method PUT -Uri "beta/deviceManagement/reusablePolicySettings('72b19ec1-3250-4dbb-8a00-5f2c86e7b0c9')" -Body $reusablePolicySettingsJson
+#Invoke-MgGraphRequest -Method PUT -Uri "beta/deviceManagement/reusablePolicySettings('72b19ec1-3250-4dbb-8a00-5f2c86e7b0c9')" -Body $reusablePolicySettingsJson
 
 
 <#
@@ -93,117 +123,5 @@ beta/deviceManagement/reusablePolicySettings('72b19ec1-3250-4dbb-8a00-5f2c86e7b0
 
 #>
 
-
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-function x
-{
-    param(
-        [Parameter(Mandatory=1)]
-        [ValidateSet('MatchAny', 'MatchAll')]
-        $MatchType
-    )
-
-
-    $global:MatchTypeEntryTemplate=@'
-{
-  "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingInstance",
-  "settingDefinitionId": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype",
-  "choiceSettingValue": {
-    "@odata.type": "#microsoft.graph.deviceManagementConfigurationChoiceSettingValue",
-    "value": "device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchany",
-    "children": []
-  }
-}
-'@
-
-    $global:MatchTypeEntry = ConvertFrom-Json $MatchTypeTemplate
-
-    if($MatchType -eq 'MatchAny')
-    {
-        $value = 'device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchany'
-    }
-    elseif($MatchType -eq 'MatchAll')
-    {
-        $value = 'device_vendor_msft_defender_configuration_devicecontrol_policygroups_{groupid}_groupdata_matchtype_matchall'
-    }
-
-    
 
 }
