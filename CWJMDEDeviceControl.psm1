@@ -1,7 +1,7 @@
 function New-CWJReusableSettings
 {
 
-
+a
 $global:ReusablePolicySettingsTemplate = @'
 {
   "displayName": "<<<DISPLAYNAME>>>",
