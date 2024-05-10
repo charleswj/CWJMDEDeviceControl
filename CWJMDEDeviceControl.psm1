@@ -1,5 +1,6 @@
 function New-CWJReusableSettings
 {
+  #
 
 $global:ReusablePolicySettingsTemplate = @'
 {
