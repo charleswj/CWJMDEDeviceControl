@@ -693,6 +693,145 @@ beta/deviceManagement/reusablePolicySettings('72b19ec1-3250-4dbb-8a00-5f2c86e7b0
 
 
 
+
+function _writeXml
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=1,ValueFromPipeline=1)]
+        [xml]
+        $InputObject,
+
+        [Parameter()]
+        [string]
+        $Path
+    )
+
+    $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
+    $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $XmlWriterSettings.Indent = $true
+    $XmlWriterSettings.IndentChars = '    '
+    $XmlWriterSettings.OmitXmlDeclaration = $true
+
+    if($PSBoundParameters.ContainsKey('Path'))
+    {
+        $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+        
+        $XmlWriter = [System.Xml.XmlWriter]::Create($Path, $XmlWriterSettings)
+        $XmlDocument.Save($XmlWriter)
+        $XmlWriter.Dispose()
+    }
+    else
+    {
+        $StringBuilder = [System.Text.StringBuilder]::new()
+        $XmlWriter = [System.Xml.XmlWriter]::Create($StringBuilder, $XmlWriterSettings)
+        $XmlDocument.Save($XmlWriter)
+        $StringBuilder.ToString()
+        $XmlWriter.Dispose()
+    }
+}
+
+<#
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum DescriptorIdName
+    {
+        FriendlyNameId,
+        PrimaryId,
+        VID_PID,
+        BusId,
+        DeviceId,
+        HardwareId,
+        InstancePathId,
+        SerialNumberId,
+        PID,
+        VID,
+        DeviceEncryptionStateId,
+        GroupId,
+    }
+}
+'@
+#>
+
+
+<#
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum MatchType
+    {
+        MatchAny
+        MatchAll
+        MatchExcludeAny
+        MatchExcludeAll
+    }
+}
+'@
+#>
+
+<#
+Add-Type -Language CSharp -TypeDefinition @'
+using System
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    [Flags]
+    public enum AccessMasks
+    {
+        DeviceRead    = 1
+        DeviceWrite   = 2
+        DeviceExecute = 4
+        Read          = DeviceRead | FileRead
+        DeviceAll     = DeviceRead | DeviceWrite | DeviceExecute
+        FileRead      = 8
+        FileWrite     = 16
+        Write         = DeviceWrite | FileWrite
+        FileExecute   = 32
+        Execute       = DeviceExecute | FileExecute
+        FileRead      = FileRead | FileWrite | FileExecute
+        Print         = 64
+    }
+}
+'@
+#>
+
+<#
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum Action //or Type
+    {
+        Allow
+        Deny
+        AuditAllow
+        AuditDeny
+    }
+}
+'@
+#>
+
+
+<#
+Type          Option Value  Description
+------------  ------------  -----------
+Allow                    0  nothing
+                         4  disable AuditAllowed and AuditDenied for this entry. If Allow occurs and the AuditAllowed setting is configured, events aren't generated.
+Deny                     0  nothing
+                         4  disable AuditDenied for this Entry. If Block occurs and the AuditDenied is setting configured, the system doesn't show notifications.
+AuditAllowed             0  nothing
+                         1  nothing
+                         2  send event
+AuditDenied              0  nothing
+                         1  show notification
+                         2  send event
+                         3  show notification and send event
+#>
+
+
+
+
+
+
 function New-CWJMdeDcGroupXml
 {
     [CmdletBinding()]
@@ -768,32 +907,16 @@ function New-CWJMdeDcGroupXml
             [void]$elementDescriptorIdList.AppendChild($elementDescriptorId)
         }
 
-        $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
-        $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
-        $XmlWriterSettings.Indent = $true
-        $XmlWriterSettings.IndentChars = '    '
-        $XmlWriterSettings.OmitXmlDeclaration = $true
-
+        $_writeXmlParams = @{
+            InputObject = $XmlDocument
+        }
         if($PSBoundParameters.ContainsKey('Path'))
         {
-            $XmlWriter = [System.Xml.XmlWriter]::Create($Path, $XmlWriterSettings)
-            $XmlDocument.Save($XmlWriter)
-            $XmlWriter.Dispose()
+            $_writeXmlParams.Add('Path', $Path)
         }
-        else
-        {
-            $StringBuilder = [System.Text.StringBuilder]::new()
-            $XmlWriter = [System.Xml.XmlWriter]::Create($StringBuilder, $XmlWriterSettings)
-            $XmlDocument.Save($XmlWriter)
-            $StringBuilder.ToString()
-            $XmlWriter.Dispose()
-        }
+        _writeXml @_writeXmlParams
     }
 }
-
-
-
-
 
 function New-CWJMdeDcRuleXml
 {
@@ -824,94 +947,328 @@ function New-CWJMdeDcRuleXml
         $Entries
     )
 
-    #begin
-    #{
-    #    $DescriptorIdValuesCombined = [System.Collections.ArrayList]::new()
-    #}
+    $XmlDocument = [System.Xml.XmlDocument]::new()
 
-    #process
-    #{
-    #    foreach($DescriptorIdValue in $DescriptorIdValues)
-    #    {
-    #        [void]$DescriptorIdValuesCombined.Add($DescriptorIdValue)
-    #    }
-    #}
+    $elementPolicyRule = $XmlDocument.CreateElement('PolicyRule')
+    $elementPolicyRule.SetAttribute('Id', $Guid.ToString('B'))
+    [void]$XmlDocument.AppendChild($elementPolicyRule)
 
-    #end
-    #{
-        $XmlDocument = [System.Xml.XmlDocument]::new()
+    $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyRules/%7b{0}%7d/RuleData ' -f $Guid.ToString()
+    $comment = $XmlDocument.CreateComment($commentText)
+    [void]$elementPolicyRule.AppendChild($comment)
 
-        $elementPolicyRule = $XmlDocument.CreateElement('PolicyRule')
-        $elementPolicyRule.SetAttribute('Id', $Guid.ToString('B'))
-        [void]$XmlDocument.AppendChild($elementPolicyRule)
+    $elementName = $XmlDocument.CreateElement('Name')
+    $TextNode = $XmlDocument.CreateTextNode($Name)
+    [void]$elementName.AppendChild($TextNode)
+    [void]$elementPolicyRule.AppendChild($elementName)
 
-        $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyRules/%7b{0}%7d/RuleData ' -f $Guid.ToString()
-        $comment = $XmlDocument.CreateComment($commentText)
-        [void]$elementPolicyRule.AppendChild($comment)
+    $elementIncludedIdList = $XmlDocument.CreateElement('IncludedIdList')
+    [void]$elementPolicyRule.AppendChild($elementIncludedIdList)
 
-        $elementName = $XmlDocument.CreateElement('Name')
-        $TextNode = $XmlDocument.CreateTextNode($Name)
-        [void]$elementName.AppendChild($TextNode)
-        [void]$elementPolicyRule.AppendChild($elementName)
+    foreach($IncludedId in $IncludedIdList)
+    {
+        $elementGroupId = $XmlDocument.CreateElement('GroupId')
+        $TextNode = $XmlDocument.CreateTextNode($IncludedId.ToString('B'))
+        [void]$elementGroupId.AppendChild($TextNode)
+        [void]$elementIncludedIdList.AppendChild($elementGroupId)
+    }
 
-        $elementIncludedIdList = $XmlDocument.CreateElement('IncludedIdList')
-        [void]$elementPolicyRule.AppendChild($elementIncludedIdList)
+    $elementExcludedIdList = $XmlDocument.CreateElement('ExcludedIdList')
+    [void]$elementPolicyRule.AppendChild($elementExcludedIdList)
 
-        foreach($IncludedId in $IncludedIdList)
-        {
-            $elementGroupId = $XmlDocument.CreateElement('GroupId')
-            $TextNode = $XmlDocument.CreateTextNode($IncludedId.ToString('B'))
-            [void]$elementGroupId.AppendChild($TextNode)
-            [void]$elementIncludedIdList.AppendChild($elementGroupId)
-        }
+    foreach($ExcludedId in $ExcludedIdList)
+    {
+        $elementGroupId = $XmlDocument.CreateElement('GroupId')
+        $TextNode = $XmlDocument.CreateTextNode($ExcludedId.ToString('B'))
+        [void]$elementGroupId.AppendChild($TextNode)
+        [void]$elementExcludedIdList.AppendChild($elementGroupId)
+    }
 
-        $elementExcludedIdList = $XmlDocument.CreateElement('ExcludedIdList')
-        [void]$elementPolicyRule.AppendChild($elementExcludedIdList)
+    foreach($Entry in $Entries)
+    {
+        $elementEntry = $XmlDocument.CreateElement('Entry')
+        $elementEntry.SetAttribute('Id', [Guid]::NewGuid().ToString('B')) #TODO:allow specifying?
+        [void]$elementPolicyRule.AppendChild($elementEntry)
 
-        foreach($ExcludedId in $ExcludedIdList)
-        {
-            $elementGroupId = $XmlDocument.CreateElement('GroupId')
-            $TextNode = $XmlDocument.CreateTextNode($ExcludedId.ToString('B'))
-            [void]$elementGroupId.AppendChild($TextNode)
-            [void]$elementExcludedIdList.AppendChild($elementGroupId)
-        }
-
-        foreach($Entry in $Entries)
-        {
-            $elementEntry = $XmlDocument.CreateElement('Entry')
-            $elementEntry.SetAttribute('Id', [Guid]::NewGuid().ToString('B')) #TODO:allow specifying?
-            [void]$elementPolicyRule.AppendChild($elementEntry)
-
-            'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | %{
-                if($Entry.ContainsKey($_))
-                {
-                    $elementEntryElement = $XmlDocument.CreateElement($_)
-                    $TextNode = $XmlDocument.CreateTextNode($Entry.Item($_))
-                    [void]$elementEntryElement.AppendChild($TextNode)
-                    [void]$elementEntry.AppendChild($elementEntryElement)
-                }
+        'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
+            if($Entry.ContainsKey($_))
+            {
+                $elementEntryElement = $XmlDocument.CreateElement($_)
+                $TextNode = $XmlDocument.CreateTextNode($Entry.Item($_))
+                [void]$elementEntryElement.AppendChild($TextNode)
+                [void]$elementEntry.AppendChild($elementEntryElement)
             }
         }
+    }
 
-        $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
-        $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
-        $XmlWriterSettings.Indent = $true
-        $XmlWriterSettings.IndentChars = '    '
-        $XmlWriterSettings.OmitXmlDeclaration = $true
+    $_writeXmlParams = @{
+        InputObject = $XmlDocument
+    }
+    if($PSBoundParameters.ContainsKey('Path'))
+    {
+        $_writeXmlParams.Add('Path', $Path)
+    }
+    _writeXml @_writeXmlParams
+}
 
+function New-CWJMdeDcPayloadXml
+{
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=1, ValueFromPipeline=1)]
+        [xml[]]
+        $InputObject,
+
+        [Parameter()]
+        [string]
+        $Path
+    )
+
+    begin
+    {
+        $xmls = [System.Collections.Generic.List[xml]]::new()
+    }
+
+    process
+    {
+        $nodeNameToUse = $null
+
+        foreach($xml in $InputObject)
+        {
+            $validNodeNames = @{
+                Group      = 'PolicyGroups'
+                PolicyRule = 'PolicyRules'
+            }
+
+            $detectedNodeName = $xml.SelectSingleNode('/').FirstChild.LocalName
+
+            if($nodeNameToUse -eq $null)
+            {
+                $nodeNameToUse = $detectedNodeName
+            }
+
+            if($nodeNameToUse -cne $detectedNodeName)
+            {
+                Write-Error 'Mismatched XML input' -ErrorAction Stop
+            }
+            elseif($detectedNodeName -cnotin $validNodeNames.Keys)
+            {
+                Write-Error 'Invalid XML input' -ErrorAction Stop
+            }
+
+            $xmls.Add($xml)
+        }
+    }
+
+    end
+    {
+        $XmlDocument = [System.Xml.XmlDocument]::new()
+
+        $elementTop = $XmlDocument.CreateElement($validNodeNames.Item($nodeNameToUse))
+        [void]$XmlDocument.AppendChild($elementTop)
+
+        foreach($xml in $xmls)
+        {
+            [void]$elementTop.AppendChild($XmlDocument.ImportNode($xml.SelectSingleNode("/$nodeNameToUse"), $true))
+        }
+
+        $_writeXmlParams = @{
+            InputObject = $XmlDocument
+        }
         if($PSBoundParameters.ContainsKey('Path'))
         {
-            $XmlWriter = [System.Xml.XmlWriter]::Create($Path, $XmlWriterSettings)
-            $XmlDocument.Save($XmlWriter)
-            $XmlWriter.Dispose()
+            $_writeXmlParams.Add('Path', $Path)
+        }
+        _writeXml @_writeXmlParams
+    }
+}
+
+function Set-CWJMdeDcLocalPolicyXml
+{
+    [CmdletBinding(DefaultParameterSetName='InputObject')]
+    param(
+        [Parameter(Mandatory=1, ValueFromPipeline=1, ParameterSetName='InputObject')]
+        [xml]
+        $InputObject,
+
+        [Parameter(Mandatory=1, ParameterSetName='Path')]
+        [string]
+        $Path
+    )
+    
+    
+    if($PSCmdlet.ParameterSetName -eq 'InputObject')
+    {
+        $XmlDocument = $InputObject
+    }
+    else
+    {
+        $XmlDocument = [System.Xml.XmlDocument]::new()
+
+        $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+
+        $XmlDocument.Load($Path)
+    }
+
+
+
+    $detectedNodeName = $XmlDocument.SelectSingleNode('/').FirstChild.LocalName
+
+    if($detectedNodeName -cnotin 'PolicyRules','PolicyGroups')
+    {
+        Write-Error 'Invalid XML input' -ErrorAction Stop
+    }
+
+    
+    $xmlString = _writeXml -InputObject $XmlDocument
+
+    
+    $ValueName = $detectedNodeName -replace '$','Test'
+
+    $SetItemPropertyParams = @{
+        Path  = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
+        Name  = $ValueName
+        Value = $xmlString
+    }
+
+    Set-ItemProperty @SetItemPropertyParams
+
+    #TODO:create key if missing
+}
+
+
+
+
+
+
+
+
+
+function New-CWJMdeDcInstancePathId
+{
+    [CmdletBinding()]
+    param(
+        [int]
+        $NumberOfDevices = 0,
+
+        [string]
+        $TestDevicePrefix = 'USBSTOR\DISK&VEN_CWJ&PROD_CWJ&REV_0000\',
+
+        [Parameter()]
+        [switch]
+        $AllowMyDevice,
+
+        [Parameter()]
+        [string]
+        $MyDevice = 'USBSTOR\DISK&VEN_SAMSUNG&PROD_FLASH_DRIVE&REV_1100\0375017020006333&0',
+
+        [Parameter()]
+        [ValidateSet('Top','Middle','Bottom')]
+        [string]
+        $MyDeviceLocation = 'Middle'
+    )
+
+    if($PSBoundParameters.ContainsKey('AllowMyDevice'))
+    {
+        if($MyDeviceLocation -eq 'Top'   ){$MyDeviceEntryNumber=1}
+        if($MyDeviceLocation -eq 'Middle'){$MyDeviceEntryNumber=[math]::Round($NumberOfDevices/2+1, [System.MidpointRounding]::ToZero)}
+        if($MyDeviceLocation -eq 'Bottom'){$MyDeviceEntryNumber=$NumberOfDevices}
+    }
+
+    $Devices = [System.Collections.Generic.List[string]]::new()
+
+    for($i=1 ; $i -le $NumberOfDevices ; $i++)
+    {
+        if($i -eq $MyDeviceEntryNumber)
+        {
+            $Devices.Add($MyDevice)
         }
         else
         {
-            $StringBuilder = [System.Text.StringBuilder]::new()
-            $XmlWriter = [System.Xml.XmlWriter]::Create($StringBuilder, $XmlWriterSettings)
-            $XmlDocument.Save($XmlWriter)
-            $StringBuilder.ToString()
-            $XmlWriter.Dispose()
+            $Devices.Add(('{0}{1:000000000000}' -f $TestDevicePrefix, $i))
         }
-    #}
+    }
+
+    $Devices
 }
+
+
+function Set-CWJMdeDcLocalPolicySetting
+{
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [ValidateSet('True', 'False')]
+        [string]
+        $DeviceControlEnabled,
+
+        [Parameter()]
+        [ValidateSet('DefaultAllow', 'DefaultDeny')]
+        [string]
+        $DefaultEnforcement,
+
+        [Parameter()]
+        [ValidateSet('RemovableMediaDevices','CdRomDevices','WpdDevices','PrinterDevices')]
+        [string[]]
+        $SecuredDevicesConfiguration
+    )
+
+    $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
+
+    
+    $ValueName = 'DeviceControlEnabled'
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        if($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -eq 'True')
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 1 -Type DWord
+        }
+        else
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 0 -Type DWord
+        }
+    }
+
+
+    $ValueName = 'DefaultEnforcement'
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        if($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -eq 'DefaultAllow')
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 1 -Type DWord
+        }
+        else
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 2 -Type DWord
+        }
+    }
+
+
+    # $ValueName = 'SecuredDevicesConfiguration'
+
+    # if($PSBoundParameters.ContainsKey($ValueName))
+    # {
+    #     $ExecutionContext.SessionState.PSVariable.Set($ValueName, ($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value | Group-Object).Name -join '|')
+
+    #     Set-ItemProperty -Path $key -Name $ValueName -Value $ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -Type String
+    # }
+
+    #TODO:error when no params
+}
+
+<#
+Software\Policies\Microsoft\Windows Defender\Features                      .DeviceControlEnabled                 0/1
+Software\Policies\Microsoft\Windows Defender\Device Control\Policy Groups  .PolicyGroups                         string
+Software\Policies\Microsoft\Windows Defender\Device Control\Policy Rules   .PolicyRules                          string
+Software\Policies\Microsoft\Windows Defender\Device Control                .DefaultEnforcement                   DefaultAllow=1 DefaultDeny=2
+Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationRemoteLocation        string
+Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationLocalRetentionPeriod  0-10000
+Software\Policies\Microsoft\Windows Defender\Device Control                .SecuredDevicesConfiguration          RemovableMediaDevices|CdRomDevices|WpdDevices|PrinterDevices
+                                                                           .DeduplicateAccessEvents
+Software\Policies\Microsoft\Windows Defender\Device Control                +CustomSupportLink
+Software\Policies\Microsoft\Windows Defender\Device Control                +PolicyRefreshFailureInterval
+Software\Policies\Microsoft\Windows Defender\Device Control                +AzureAdRefreshInterval
+Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationMaximumQuota          5-5000
+#>
