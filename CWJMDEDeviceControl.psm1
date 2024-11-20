@@ -694,42 +694,6 @@ beta/deviceManagement/reusablePolicySettings('72b19ec1-3250-4dbb-8a00-5f2c86e7b0
 
 
 
-function _writeXml
-{
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory=1,ValueFromPipeline=1)]
-        [xml]
-        $InputObject,
-
-        [Parameter()]
-        [string]
-        $Path
-    )
-
-    $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
-    $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
-    $XmlWriterSettings.Indent = $true
-    $XmlWriterSettings.IndentChars = '    '
-    $XmlWriterSettings.OmitXmlDeclaration = $true
-
-    if($PSBoundParameters.ContainsKey('Path'))
-    {
-        $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-        
-        $XmlWriter = [System.Xml.XmlWriter]::Create($Path, $XmlWriterSettings)
-        $XmlDocument.Save($XmlWriter)
-        $XmlWriter.Dispose()
-    }
-    else
-    {
-        $StringBuilder = [System.Text.StringBuilder]::new()
-        $XmlWriter = [System.Xml.XmlWriter]::Create($StringBuilder, $XmlWriterSettings)
-        $XmlDocument.Save($XmlWriter)
-        $StringBuilder.ToString()
-        $XmlWriter.Dispose()
-    }
-}
 
 <#
 Add-Type -Language CSharp -TypeDefinition @'
@@ -754,7 +718,6 @@ namespace CWJ.Modules.CWJMDEDeviceControl
 '@
 #>
 
-
 <#
 Add-Type -Language CSharp -TypeDefinition @'
 namespace CWJ.Modules.CWJMDEDeviceControl
@@ -770,45 +733,9 @@ namespace CWJ.Modules.CWJMDEDeviceControl
 '@
 #>
 
-<#
-Add-Type -Language CSharp -TypeDefinition @'
-using System
-namespace CWJ.Modules.CWJMDEDeviceControl
-{
-    [Flags]
-    public enum AccessMasks
-    {
-        DeviceRead    = 1
-        DeviceWrite   = 2
-        DeviceExecute = 4
-        Read          = DeviceRead | FileRead
-        DeviceAll     = DeviceRead | DeviceWrite | DeviceExecute
-        FileRead      = 8
-        FileWrite     = 16
-        Write         = DeviceWrite | FileWrite
-        FileExecute   = 32
-        Execute       = DeviceExecute | FileExecute
-        FileRead      = FileRead | FileWrite | FileExecute
-        Print         = 64
-    }
-}
-'@
-#>
 
-<#
-Add-Type -Language CSharp -TypeDefinition @'
-namespace CWJ.Modules.CWJMDEDeviceControl
-{
-    public enum Action //or Type
-    {
-        Allow
-        Deny
-        AuditAllow
-        AuditDeny
-    }
-}
-'@
-#>
+
+
 
 
 <#
@@ -1032,7 +959,7 @@ function New-CWJMdeDcRuleEntryXml
         $Options, #TODO:mandatory?
         
         [Parameter()]
-        [CWJ.Modules.CWJMDEDeviceControl.Test.RuleEntryAccessMasks1]
+        [CWJ.Modules.CWJMDEDeviceControl.RuleEntryAccessMask]
         $AccessMask, #TODO:mandatory?
         
         [Parameter()]
@@ -1044,17 +971,9 @@ function New-CWJMdeDcRuleEntryXml
         $ComputerSid
     )
 
+    $entry = [ordered]@{}
 
-
-
-
-
-
-
-    $op = [ordered]@{}
-
-    $op.Add('Id', $Guid.ToString('B'))
-
+    $entry.Add('Id', $Guid.ToString('B'))
 
     'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
         if($PSBoundParameters.ContainsKey($_))
@@ -1067,48 +986,11 @@ function New-CWJMdeDcRuleEntryXml
             {
                 $value = $ExecutionContext.SessionState.PSVariable.Get($_).Value
             }
-            $op.Add($_, $value)
+            $entry.Add($_, $value)
         }
     }
 
-    return $op
-
-
-
-
-
-
-
-    
-
-
-    # $XmlDocument = [System.Xml.XmlDocument]::new()
-    
-    # $elementEntry = $XmlDocument.CreateElement('Entry')
-    # $elementEntry.SetAttribute('Id', [Guid]::NewGuid().ToString('B')) #TODO:allow specifying?
-    # [void]$XmlDocument.AppendChild($elementEntry)
-
-    # 'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
-    #     if($PSBoundParameters.ContainsKey($_))
-    #     {
-    #         $elementEntryElement = $XmlDocument.CreateElement($_)
-    #         if($_ -eq 'AccessMask')
-    #         {
-    #             $TextNode = $XmlDocument.CreateTextNode($ExecutionContext.SessionState.PSVariable.Get($_).Value.Value__)
-    #         }
-    #         else
-    #         {
-    #             $TextNode = $XmlDocument.CreateTextNode($ExecutionContext.SessionState.PSVariable.Get($_).Value)
-    #         }
-    #         [void]$elementEntryElement.AppendChild($TextNode)
-    #         [void]$elementEntry.AppendChild($elementEntryElement)
-    #     }
-    # }
-
-    # $_writeXmlParams = @{
-    #     InputObject = $XmlDocument
-    # }
-    # _writeXml @_writeXmlParams
+    return $entry
 }
 
 
@@ -1117,10 +999,10 @@ function New-CWJMdeDcRuleEntryXml
 
 Add-Type -Language CSharp -TypeDefinition @'
 //using System
-namespace CWJ.Modules.CWJMDEDeviceControl.Test
+namespace CWJ.Modules.CWJMDEDeviceControl
 {
     //[Flags]
-    public enum RuleEntryAccessMasks1
+    public enum RuleEntryAccessMask
     {
         DeviceRead    = 1,
         DeviceWrite   = 2,
@@ -1150,6 +1032,21 @@ namespace CWJ.Modules.CWJMDEDeviceControl
         Deny,
         AuditAllow,
         AuditDeny,
+    }
+}
+'@
+
+
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum PrimaryId
+    {
+        //None,
+        RemovableMediaDevices,
+        CdRomDevices,
+        WpdDevices,
+        PrinterDevices,
     }
 }
 '@
@@ -1284,14 +1181,6 @@ function Set-CWJMdeDcLocalPolicyXml
     #TODO:create key if missing
 }
 
-
-
-
-
-
-
-
-
 function New-CWJMdeDcInstancePathId
 {
     [CmdletBinding()]
@@ -1339,7 +1228,6 @@ function New-CWJMdeDcInstancePathId
 
     $Devices
 }
-
 
 function Set-CWJMdeDcLocalPolicySetting
 {
@@ -1456,25 +1344,39 @@ function Set-CWJMdeDcLocalPolicySetting
 }
 
 
-
-
-
-
-
-Add-Type -Language CSharp -TypeDefinition @'
-namespace CWJ.Modules.CWJMDEDeviceControl
+function _writeXml
 {
-    public enum PrimaryId
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=1,ValueFromPipeline=1)]
+        [xml]
+        $InputObject,
+
+        [Parameter()]
+        [string]
+        $Path
+    )
+
+    $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
+    $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $XmlWriterSettings.Indent = $true
+    $XmlWriterSettings.IndentChars = '    '
+    $XmlWriterSettings.OmitXmlDeclaration = $true
+
+    if($PSBoundParameters.ContainsKey('Path'))
     {
-        //None,
-        RemovableMediaDevices,
-        CdRomDevices,
-        WpdDevices,
-        PrinterDevices,
+        $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+        
+        $XmlWriter = [System.Xml.XmlWriter]::Create($Path, $XmlWriterSettings)
+        $XmlDocument.Save($XmlWriter)
+        $XmlWriter.Dispose()
+    }
+    else
+    {
+        $StringBuilder = [System.Text.StringBuilder]::new()
+        $XmlWriter = [System.Xml.XmlWriter]::Create($StringBuilder, $XmlWriterSettings)
+        $XmlDocument.Save($XmlWriter)
+        $StringBuilder.ToString()
+        $XmlWriter.Dispose()
     }
 }
-'@
-
-
-
-
