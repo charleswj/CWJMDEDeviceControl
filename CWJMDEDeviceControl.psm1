@@ -987,7 +987,7 @@ function New-CWJMdeDcRuleXml
     foreach($Entry in $Entries)
     {
         $elementEntry = $XmlDocument.CreateElement('Entry')
-        $elementEntry.SetAttribute('Id', [Guid]::NewGuid().ToString('B')) #TODO:allow specifying?
+        $elementEntry.SetAttribute('Id', $Entry.Item('Id')) #TODO:allow specifying?
         [void]$elementPolicyRule.AppendChild($elementEntry)
 
         'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
@@ -1010,6 +1010,154 @@ function New-CWJMdeDcRuleXml
     }
     _writeXml @_writeXmlParams
 }
+
+
+
+
+
+function New-CWJMdeDcRuleEntryXml
+{
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [Guid]
+        $Guid = [Guid]::NewGuid(),
+
+        [Parameter(Mandatory=1)]
+        [CWJ.Modules.CWJMDEDeviceControl.RuleEntryType]
+        $Type,
+        
+        [Parameter()]
+        [int]
+        $Options, #TODO:mandatory?
+        
+        [Parameter()]
+        [CWJ.Modules.CWJMDEDeviceControl.Test.RuleEntryAccessMasks1]
+        $AccessMask, #TODO:mandatory?
+        
+        [Parameter()]
+        [System.Security.Principal.SecurityIdentifier]
+        $Sid, #TODO:multiple allowed?
+        
+        [Parameter()]
+        [System.Security.Principal.SecurityIdentifier]
+        $ComputerSid
+    )
+
+
+
+
+
+
+
+
+    $op = [ordered]@{}
+
+    $op.Add('Id', $Guid.ToString('B'))
+
+
+    'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
+        if($PSBoundParameters.ContainsKey($_))
+        {
+            if($_ -eq 'AccessMask')
+            {
+                $value = $ExecutionContext.SessionState.PSVariable.Get($_).Value.Value__
+            }
+            else
+            {
+                $value = $ExecutionContext.SessionState.PSVariable.Get($_).Value
+            }
+            $op.Add($_, $value)
+        }
+    }
+
+    return $op
+
+
+
+
+
+
+
+    
+
+
+    # $XmlDocument = [System.Xml.XmlDocument]::new()
+    
+    # $elementEntry = $XmlDocument.CreateElement('Entry')
+    # $elementEntry.SetAttribute('Id', [Guid]::NewGuid().ToString('B')) #TODO:allow specifying?
+    # [void]$XmlDocument.AppendChild($elementEntry)
+
+    # 'Type', 'Options', 'AccessMask', 'Sid', 'ComputerSid' | ForEach-Object{
+    #     if($PSBoundParameters.ContainsKey($_))
+    #     {
+    #         $elementEntryElement = $XmlDocument.CreateElement($_)
+    #         if($_ -eq 'AccessMask')
+    #         {
+    #             $TextNode = $XmlDocument.CreateTextNode($ExecutionContext.SessionState.PSVariable.Get($_).Value.Value__)
+    #         }
+    #         else
+    #         {
+    #             $TextNode = $XmlDocument.CreateTextNode($ExecutionContext.SessionState.PSVariable.Get($_).Value)
+    #         }
+    #         [void]$elementEntryElement.AppendChild($TextNode)
+    #         [void]$elementEntry.AppendChild($elementEntryElement)
+    #     }
+    # }
+
+    # $_writeXmlParams = @{
+    #     InputObject = $XmlDocument
+    # }
+    # _writeXml @_writeXmlParams
+}
+
+
+
+
+
+Add-Type -Language CSharp -TypeDefinition @'
+//using System
+namespace CWJ.Modules.CWJMDEDeviceControl.Test
+{
+    //[Flags]
+    public enum RuleEntryAccessMasks1
+    {
+        DeviceRead    = 1,
+        DeviceWrite   = 2,
+        DeviceExecute = 4,
+        DeviceAll     = DeviceRead | DeviceWrite | DeviceExecute,
+        FileRead      = 8,
+        Read          = DeviceRead | FileRead,
+        FileWrite     = 16,
+        Write         = DeviceWrite | FileWrite,
+        FileExecute   = 32,
+        Execute       = DeviceExecute | FileExecute,
+        FileAll       = FileRead | FileWrite | FileExecute,
+        Print         = 64,
+        All           
+    }
+}
+'@
+
+
+
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum RuleEntryType //or Type?
+    {
+        Allow,
+        Deny,
+        AuditAllow,
+        AuditDeny,
+    }
+}
+'@
+
+
+
+
+
 
 function New-CWJMdeDcPayloadXml
 {
@@ -1208,11 +1356,20 @@ function Set-CWJMdeDcLocalPolicySetting
         $DefaultEnforcement,
 
         [Parameter()]
-        [ValidateSet('RemovableMediaDevices','CdRomDevices','WpdDevices','PrinterDevices')]
-        [string[]]
-        $SecuredDevicesConfiguration
-    )
+        [CWJ.Modules.CWJMDEDeviceControl.PrimaryId[]]
+        $SecuredDevicesConfiguration,
 
+        [Parameter()]
+        [ValidateSet('True', 'False')]
+        [string]
+        $DeduplicateAccessEvents,
+
+        [Parameter()]
+        [ValidateSet('DeviceControlEnabled', 'DefaultEnforcement','SecuredDevicesConfiguration','DeduplicateAccessEvents','PolicyGroups','PolicyRules')]
+        [string[]]
+        $RemoveSetting
+    )
+    
     $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
 
     
@@ -1246,29 +1403,78 @@ function Set-CWJMdeDcLocalPolicySetting
     }
 
 
-    # $ValueName = 'SecuredDevicesConfiguration'
+    $ValueName = 'SecuredDevicesConfiguration'
 
-    # if($PSBoundParameters.ContainsKey($ValueName))
-    # {
-    #     $ExecutionContext.SessionState.PSVariable.Set($ValueName, ($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value | Group-Object).Name -join '|')
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        $Value = ($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value | Group-Object).Name -join '|'
 
-    #     Set-ItemProperty -Path $key -Name $ValueName -Value $ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -Type String
-    # }
+        Set-ItemProperty -Path $key -Name $ValueName -Value $Value -Type String
+    }
+    #TODO:add none to enum
 
-    #TODO:error when no params
+
+
+    $ValueName = 'DeduplicateAccessEvents'
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        if($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -eq 'True')
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 1 -Type DWord
+        }
+        else
+        {
+            Set-ItemProperty -Path $key -Name $ValueName -Value 0 -Type DWord
+        }
+    }
+
+
+
+    $ValueName = 'RemoveSetting'
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        $Value = ($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value | Group-Object).Name
+
+        Remove-ItemProperty -Path $key -Name $Value
+    }
+
+    <#
+
+    #to add, is in GPO
+    Software\Policies\Microsoft\Windows Defender\Device Control                CustomSupportLink
+    Software\Policies\Microsoft\Windows Defender\Device Control                PolicyRefreshFailureInterval
+    Software\Policies\Microsoft\Windows Defender\Device Control                AzureAdRefreshInterval
+    Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationRemoteLocation        string
+    Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationLocalRetentionPeriod  0-10000
+    Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationMaximumQuota          5-5000
+
+    #to add, not in GPO
+                                                                            DataDuplicationDirectory             string???
+    #>
 }
 
-<#
-Software\Policies\Microsoft\Windows Defender\Features                      .DeviceControlEnabled                 0/1
-Software\Policies\Microsoft\Windows Defender\Device Control\Policy Groups  .PolicyGroups                         string
-Software\Policies\Microsoft\Windows Defender\Device Control\Policy Rules   .PolicyRules                          string
-Software\Policies\Microsoft\Windows Defender\Device Control                .DefaultEnforcement                   DefaultAllow=1 DefaultDeny=2
-Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationRemoteLocation        string
-Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationLocalRetentionPeriod  0-10000
-Software\Policies\Microsoft\Windows Defender\Device Control                .SecuredDevicesConfiguration          RemovableMediaDevices|CdRomDevices|WpdDevices|PrinterDevices
-                                                                           .DeduplicateAccessEvents
-Software\Policies\Microsoft\Windows Defender\Device Control                +CustomSupportLink
-Software\Policies\Microsoft\Windows Defender\Device Control                +PolicyRefreshFailureInterval
-Software\Policies\Microsoft\Windows Defender\Device Control                +AzureAdRefreshInterval
-Software\Policies\Microsoft\Windows Defender\Device Control                DataDuplicationMaximumQuota          5-5000
-#>
+
+
+
+
+
+
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public enum PrimaryId
+    {
+        //None,
+        RemovableMediaDevices,
+        CdRomDevices,
+        WpdDevices,
+        PrinterDevices,
+    }
+}
+'@
+
+
+
+
