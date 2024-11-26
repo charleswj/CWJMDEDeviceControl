@@ -739,19 +739,51 @@ namespace CWJ.Modules.CWJMDEDeviceControl
 
 
 <#
-Type          Option Value  Description
-------------  ------------  -----------
-Allow                    0  nothing
-                         4  disable AuditAllowed and AuditDenied for this entry. If Allow occurs and the AuditAllowed setting is configured, events aren't generated.
-Deny                     0  nothing
-                         4  disable AuditDenied for this Entry. If Block occurs and the AuditDenied is setting configured, the system doesn't show notifications.
-AuditAllowed             0  nothing
-                         1  nothing
-                         2  send event
-AuditDenied              0  nothing
-                         1  show notification
-                         2  send event
-                         3  show notification and send event
+
+Type          Option Value  Enum                          Description
+------------  ------------  ----------------------------  -----------
+Allow                    0  Nothing                       nothing
+Allow                    4  DisableAuditAllowedDenied     disable AuditAllowed and AuditDenied for this entry. If Allow occurs and the AuditAllowed setting is configured, events aren't generated.
+Deny                     0  Nothing                       nothing
+Deny                     4  DisableAuditDenied            disable                  AuditDenied for this Entry. If Block occurs and the AuditDenied is setting configured, the system doesn't show notifications.
+AuditAllowed             0  Nothing                       nothing
+AuditAllowed             1  Nothing                       nothing
+AuditAllowed             2  SendEvent                     send event
+AuditDenied              0  Nothing                       nothing
+AuditDenied              1  ShowNotification              show notification
+AuditDenied              2  SendEvent                     send event
+AuditDenied              3  ShowNotificationAndSendEvent  show notification and send event
+
+
+Type          Option Value  Enum                          Description
+------------  ------------  ----------------------------  -----------
+Allow                    0  Nothing                       nothing
+Deny                     0  Nothing                       nothing
+AuditAllowed             0  Nothing                       nothing
+AuditDenied              0  Nothing                       nothing
+
+AuditAllowed             1  Nothing                       nothing
+AuditDenied              1  ShowNotification              show notification
+
+AuditAllowed             2  SendEvent                     send event
+AuditDenied              2  SendEvent                     send event
+
+AuditDenied              3  ShowNotificationAndSendEvent  show notification and send event
+
+Allow                    4  DisableAuditAllowedDenied     disable AuditAllowed and AuditDenied for this entry. If Allow       occurs and the AuditAllowed             setting is configured, audit events aren't generated.
+Deny                     4  DisableAuditDenied            disable                  AuditDenied for this entry. If       Block occurs and the              AuditDenied setting is configured, the system doesn't show notifications.
+
+
+                                     +-------------- applies to --------------+
+                                     |                                        |
+value  name                          | Allow  Deny  AuditAllowed  AuditDenied |
+-----  ----------------------------  | -----  ----  ------------  ----------- |
+    0  Nothing
+    1  ShowNotification                                                X
+    2  SendEvent                                         X             X
+    3* ShowNotificationAndSendEvent                                    X
+    4  DisableAudit(Allowed)?Denied      X     X
+
 #>
 
 
@@ -959,7 +991,7 @@ function New-CWJMdeDcRuleEntryXml
         $Options, #TODO:mandatory?
         
         [Parameter()]
-        [CWJ.Modules.CWJMDEDeviceControl.RuleEntryAccessMask]
+        [CWJ.Modules.CWJMDEDeviceControl.RuleEntryAccessMask[]]
         $AccessMask, #TODO:mandatory?
         
         [Parameter()]
@@ -971,6 +1003,7 @@ function New-CWJMdeDcRuleEntryXml
         $ComputerSid
     )
 
+    
     $entry = [ordered]@{}
 
     $entry.Add('Id', $Guid.ToString('B'))
@@ -981,6 +1014,10 @@ function New-CWJMdeDcRuleEntryXml
             if($_ -eq 'AccessMask')
             {
                 $value = $ExecutionContext.SessionState.PSVariable.Get($_).Value.Value__
+
+                # get the sum of only unique enum values
+                #TODO: is there a better way to do this?
+                $value = (($value | Group-Object -NoElement).Name | Measure-Object -Sum).Sum
             }
             else
             {
@@ -1004,6 +1041,7 @@ namespace CWJ.Modules.CWJMDEDeviceControl
     //[Flags]
     public enum RuleEntryAccessMask
     {
+        None          = 0,
         DeviceRead    = 1,
         DeviceWrite   = 2,
         DeviceExecute = 4,
@@ -1016,7 +1054,6 @@ namespace CWJ.Modules.CWJMDEDeviceControl
         Execute       = DeviceExecute | FileExecute,
         FileAll       = FileRead | FileWrite | FileExecute,
         Print         = 64,
-        All           
     }
 }
 '@
@@ -1141,44 +1178,46 @@ function Set-CWJMdeDcLocalPolicyXml
         $Path
     )
     
-    
-    if($PSCmdlet.ParameterSetName -eq 'InputObject')
-    {
-        $XmlDocument = $InputObject
-    }
-    else
-    {
-        $XmlDocument = [System.Xml.XmlDocument]::new()
-
-        $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
-
-        $XmlDocument.Load($Path)
-    }
-
-
-
-    $detectedNodeName = $XmlDocument.SelectSingleNode('/').FirstChild.LocalName
-
-    if($detectedNodeName -cnotin 'PolicyRules','PolicyGroups')
-    {
-        Write-Error 'Invalid XML input' -ErrorAction Stop
-    }
+    Write-Error 'Cmdlet deprecated, use Set-CWJMdeDcLocalPolicySetting with PolicyGroups and/or PolicyRules parameters' -ErrorAction Stop
 
     
-    $xmlString = _writeXml -InputObject $XmlDocument
+    # if($PSCmdlet.ParameterSetName -eq 'InputObject')
+    # {
+    #     $XmlDocument = $InputObject
+    # }
+    # else
+    # {
+    #     $XmlDocument = [System.Xml.XmlDocument]::new()
+
+    #     $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+
+    #     $XmlDocument.Load($Path)
+    # }
+
+
+
+    # $detectedNodeName = $XmlDocument.SelectSingleNode('/').FirstChild.LocalName
+
+    # if($detectedNodeName -cnotin 'PolicyRules','PolicyGroups')
+    # {
+    #     Write-Error 'Invalid XML input' -ErrorAction Stop
+    # }
 
     
-    $ValueName = $detectedNodeName -replace '$','Test'
+    # $xmlString = _writeXml -InputObject $XmlDocument
 
-    $SetItemPropertyParams = @{
-        Path  = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
-        Name  = $ValueName
-        Value = $xmlString
-    }
+    
+    # $ValueName = '{0}_Test' -f $detectedNodeName #TODO: remove this
 
-    Set-ItemProperty @SetItemPropertyParams
+    # $SetItemPropertyParams = @{
+    #     Path  = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
+    #     Name  = $ValueName
+    #     Value = $xmlString
+    # }
 
-    #TODO:create key if missing
+    # Set-ItemProperty @SetItemPropertyParams
+
+    # #TODO:create key if missing
 }
 
 function New-CWJMdeDcInstancePathId
@@ -1192,8 +1231,9 @@ function New-CWJMdeDcInstancePathId
         $TestDevicePrefix = 'USBSTOR\DISK&VEN_CWJ&PROD_CWJ&REV_0000\',
 
         [Parameter()]
+        [Alias('AllowMyDevice')]
         [switch]
-        $AllowMyDevice,
+        $IncludeMyDevice,
 
         [Parameter()]
         [string]
@@ -1205,8 +1245,8 @@ function New-CWJMdeDcInstancePathId
         $MyDeviceLocation = 'Middle'
     )
 
-    if($PSBoundParameters.ContainsKey('AllowMyDevice'))
-    {
+    if($PSBoundParameters.ContainsKey('IncludeMyDevice'))
+    {        
         if($MyDeviceLocation -eq 'Top'   ){$MyDeviceEntryNumber=1}
         if($MyDeviceLocation -eq 'Middle'){$MyDeviceEntryNumber=[math]::Round($NumberOfDevices/2+1, [System.MidpointRounding]::ToZero)}
         if($MyDeviceLocation -eq 'Bottom'){$MyDeviceEntryNumber=$NumberOfDevices}
@@ -1239,7 +1279,7 @@ function Set-CWJMdeDcLocalPolicySetting
         $DeviceControlEnabled,
 
         [Parameter()]
-        [ValidateSet('DefaultAllow', 'DefaultDeny')]
+        [ValidateSet('Allow', 'Deny')]
         [string]
         $DefaultEnforcement,
 
@@ -1253,14 +1293,24 @@ function Set-CWJMdeDcLocalPolicySetting
         $DeduplicateAccessEvents,
 
         [Parameter()]
+        [xml]
+        $PolicyGroups,
+
+        [Parameter()]
+        [xml]
+        $PolicyRules,
+
+        [Parameter()]
         [ValidateSet('DeviceControlEnabled', 'DefaultEnforcement','SecuredDevicesConfiguration','DeduplicateAccessEvents','PolicyGroups','PolicyRules')]
         [string[]]
         $RemoveSetting
     )
     
     $key = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows Defender\Policy Manager'
+    #TODO:create key if missing
 
     
+
     $ValueName = 'DeviceControlEnabled'
 
     if($PSBoundParameters.ContainsKey($ValueName))
@@ -1276,11 +1326,12 @@ function Set-CWJMdeDcLocalPolicySetting
     }
 
 
+
     $ValueName = 'DefaultEnforcement'
 
     if($PSBoundParameters.ContainsKey($ValueName))
     {
-        if($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -eq 'DefaultAllow')
+        if($ExecutionContext.SessionState.PSVariable.Get($ValueName).Value -eq 'Allow')
         {
             Set-ItemProperty -Path $key -Name $ValueName -Value 1 -Type DWord
         }
@@ -1289,6 +1340,7 @@ function Set-CWJMdeDcLocalPolicySetting
             Set-ItemProperty -Path $key -Name $ValueName -Value 2 -Type DWord
         }
     }
+
 
 
     $ValueName = 'SecuredDevicesConfiguration'
@@ -1315,6 +1367,56 @@ function Set-CWJMdeDcLocalPolicySetting
         {
             Set-ItemProperty -Path $key -Name $ValueName -Value 0 -Type DWord
         }
+    }
+
+
+
+    $ValueName = 'PolicyGroups' #TODO duplicate for PolicyRules
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        $XmlDocument = $ExecutionContext.SessionState.PSVariable.Get($ValueName).Value
+
+        # keep this in case we load from path later, would need its own param
+        # $XmlDocument = [System.Xml.XmlDocument]::new()
+        # $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+        # $XmlDocument.Load($Path)
+
+        if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+        {
+            Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+        }
+
+        $Value = _writeXml -InputObject $XmlDocument
+
+        #$ValueName = '{0}_Test' -f $ValueName #TODO: remove this
+
+        Set-ItemProperty -Path $key -Name $ValueName -Value $Value -Type String
+    }
+
+
+
+    $ValueName = 'PolicyRules' #TODO duplicate for PolicyRules
+
+    if($PSBoundParameters.ContainsKey($ValueName))
+    {
+        $XmlDocument = $ExecutionContext.SessionState.PSVariable.Get($ValueName).Value
+
+        # keep this in case we load from path later, would need its own param
+        # $XmlDocument = [System.Xml.XmlDocument]::new()
+        # $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
+        # $XmlDocument.Load($Path)
+
+        if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+        {
+            Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+        }
+
+        $Value = _writeXml -InputObject $XmlDocument
+
+        #$ValueName = '{0}_Test' -f $ValueName #TODO: remove this
+
+        Set-ItemProperty -Path $key -Name $ValueName -Value $Value -Type String
     }
 
 
