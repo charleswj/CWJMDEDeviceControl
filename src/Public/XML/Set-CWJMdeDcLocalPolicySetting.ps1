@@ -100,7 +100,7 @@ function Set-CWJMdeDcLocalPolicySetting
 
 
 
-    $ValueName = 'PolicyGroups' #TODO duplicate for PolicyRules
+    $ValueName = 'PolicyGroups'
 
     if($PSBoundParameters.ContainsKey($ValueName))
     {
@@ -111,21 +111,26 @@ function Set-CWJMdeDcLocalPolicySetting
         # $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
         # $XmlDocument.Load($Path)
 
-        if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+        if($XmlDocument -ne $null)
         {
-            Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+            if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+            {
+                Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+            }
+
+            $Value = _writeXml -InputObject $XmlDocument
         }
-
-        $Value = _writeXml -InputObject $XmlDocument
-
-        #$ValueName = '{0}_Test' -f $ValueName #TODO: remove this
+        else
+        {
+            $Value = $null
+        }
 
         Set-ItemProperty -Path $key -Name $ValueName -Value $Value -Type String
     }
 
 
 
-    $ValueName = 'PolicyRules' #TODO duplicate for PolicyRules
+    $ValueName = 'PolicyRules'
 
     if($PSBoundParameters.ContainsKey($ValueName))
     {
@@ -136,14 +141,19 @@ function Set-CWJMdeDcLocalPolicySetting
         # $Path = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
         # $XmlDocument.Load($Path)
 
-        if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+        if($XmlDocument -ne $null)
         {
-            Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+            if($XmlDocument.SelectSingleNode('/').FirstChild.LocalName -cne $ValueName)
+            {
+                Write-Error "Invalid XML input for $ValueName parameter" -ErrorAction Stop
+            }
+        
+            $Value = _writeXml -InputObject $XmlDocument
         }
-
-        $Value = _writeXml -InputObject $XmlDocument
-
-        #$ValueName = '{0}_Test' -f $ValueName #TODO: remove this
+        else
+        {
+            $Value = $null
+        }
 
         Set-ItemProperty -Path $key -Name $ValueName -Value $Value -Type String
     }

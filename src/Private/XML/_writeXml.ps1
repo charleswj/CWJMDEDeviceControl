@@ -8,12 +8,18 @@ function _writeXml
 
         [Parameter()]
         [string]
-        $Path
+        $Path,
+
+        [Parameter()]
+        [switch]
+        $Compress
     )
+
+    $XmlDocument = $InputObject
 
     $XmlWriterSettings = [System.Xml.XmlWriterSettings]::new()
     $XmlWriterSettings.Encoding = [System.Text.UTF8Encoding]::new($false)
-    $XmlWriterSettings.Indent = $true
+    $XmlWriterSettings.Indent = -not $Compress
     $XmlWriterSettings.IndentChars = '    '
     $XmlWriterSettings.OmitXmlDeclaration = $true
 

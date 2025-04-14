@@ -25,7 +25,11 @@ function New-CWJMdeDcXmlRule
 
         [Parameter()]
         [Hashtable[]]
-        $Entries
+        $Entries,
+
+        [Parameter()]
+        [switch]
+        $Compress
     )
 
     $XmlDocument = [System.Xml.XmlDocument]::new()
@@ -84,6 +88,7 @@ function New-CWJMdeDcXmlRule
 
     $_writeXmlParams = @{
         InputObject = $XmlDocument
+        Compress    = $Compress
     }
     if($PSBoundParameters.ContainsKey('Path'))
     {

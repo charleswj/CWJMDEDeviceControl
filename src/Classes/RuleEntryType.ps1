@@ -5,8 +5,8 @@ namespace CWJ.Modules.CWJMDEDeviceControl
     {
         Allow,
         Deny,
-        AuditAllow,
-        AuditDeny,
+        AuditAllowed,
+        AuditDenied,
     }
 }
 '@

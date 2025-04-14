@@ -19,7 +19,7 @@ function New-CWJMdeDcReusableSettings
     [string]
     $DescriptorIdType = 'InstancePathId',
 
-    [Parameter(Mandatory=1)]
+    [Parameter()]
     [string[]]
     $DescriptorId
   )

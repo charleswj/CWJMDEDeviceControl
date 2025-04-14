@@ -1,13 +1,9 @@
 function Remove-CWJMdeDcReusableSettings
 {
   param(
-    [Parameter(Mandatory=1, ParameterSetName='Id')]
+    [Parameter()]
     [string]
     $Id
-
-    #[Parameter(Mandatory=1, ParameterSetName='DisplayName')]
-    #[string]
-    #$DisplayName
   )
 
   $InvokeMgGraphRequestParams = @{

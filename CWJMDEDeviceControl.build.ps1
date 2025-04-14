@@ -86,7 +86,7 @@ task Clean {
 
 task PublishToPowerShellGallery {        
 
-    $apiKey = Read-Host -Prompt 'Enter PowerShell Gallery API key'
+    $apiKey = Read-Host -Prompt 'Enter PowerShell Gallery API key' -MaskInput
 
     $PublishModuleParams = @{
         Path        = $modulePath

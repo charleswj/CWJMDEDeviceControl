@@ -23,7 +23,7 @@ function Build-CWJMdeDcReusableSettingsPayload
     [string]
     $DescriptorIdType = 'InstancePathId',
 
-    [Parameter(Mandatory=1)]
+    [Parameter()]
     [string[]]
     $DescriptorId
   )
@@ -85,8 +85,9 @@ function Build-CWJMdeDcReusableSettingsPayload
   
   [void]$ReusablePolicySettingsEntries.Add($MdeDcReusableSettingsMatchTypePayload)
 
-  $DescriptorId | ForEach-Object {
-    $MdeDcReusableSettingsDescriptorIdListPayload = Build-CWJMdeDcReusableSettingsDescriptorIdListPayload -InstancePathId $_
+  foreach($DescriptorIdString in $DescriptorId)
+  {
+    $MdeDcReusableSettingsDescriptorIdListPayload = Build-CWJMdeDcReusableSettingsDescriptorIdListPayload -InstancePathId $DescriptorIdString
     [void]$ReusablePolicySettingsEntries.Add($MdeDcReusableSettingsDescriptorIdListPayload)
   }
 

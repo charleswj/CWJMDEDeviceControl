@@ -23,7 +23,11 @@ function New-CWJMdeDcXmlGroup
         [Parameter()]
         [ValidateSet('MatchAny','MatchAll','MatchExcludeAny','MatchExcludeAll')]
         [string]
-        $MatchType = 'MatchAny'
+        $MatchType = 'MatchAny',
+
+        [Parameter()]
+        [switch]
+        $Compress
     )
 
     begin
@@ -76,6 +80,7 @@ function New-CWJMdeDcXmlGroup
 
         $_writeXmlParams = @{
             InputObject = $XmlDocument
+            Compress    = $Compress
         }
         if($PSBoundParameters.ContainsKey('Path'))
         {

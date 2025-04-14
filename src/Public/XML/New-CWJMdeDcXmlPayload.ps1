@@ -9,7 +9,11 @@ function New-CWJMdeDcXmlPayload
 
         [Parameter()]
         [string]
-        $Path
+        $Path,
+
+        [Parameter()]
+        [switch]
+        $Compress
     )
 
     begin
@@ -62,6 +66,7 @@ function New-CWJMdeDcXmlPayload
 
         $_writeXmlParams = @{
             InputObject = $XmlDocument
+            Compress    = $Compress
         }
         if($PSBoundParameters.ContainsKey('Path'))
         {
