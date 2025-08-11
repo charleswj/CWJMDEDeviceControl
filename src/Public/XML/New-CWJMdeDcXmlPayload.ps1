@@ -4,6 +4,7 @@ function New-CWJMdeDcXmlPayload
     [CmdletBinding()]
     param(
         [Parameter(Mandatory=1, ValueFromPipeline=1)]
+        # [AllowEmptyCollection()] #TODO: (maybe?) allow for empty
         [xml[]]
         $InputObject,
 

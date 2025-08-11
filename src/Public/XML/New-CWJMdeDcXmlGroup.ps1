@@ -27,7 +27,11 @@ function New-CWJMdeDcXmlGroup
 
         [Parameter()]
         [switch]
-        $Compress
+        $Compress,
+
+        [Parameter()]
+        [switch]
+        $NoOmaUriComment
     )
 
     begin
@@ -51,9 +55,12 @@ function New-CWJMdeDcXmlGroup
         $elementGroup.SetAttribute('Id', $Guid.ToString('B'))
         [void]$XmlDocument.AppendChild($elementGroup)
 
-        $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyGroups/%7b{0}%7d/GroupData ' -f $Guid.ToString()
-        $comment = $XmlDocument.CreateComment($commentText)
-        [void]$elementGroup.AppendChild($comment)
+        if(-not $NoOmaUriComment)
+        {
+            $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyGroups/%7b{0}%7d/GroupData ' -f $Guid.ToString()
+            $comment = $XmlDocument.CreateComment($commentText)
+            [void]$elementGroup.AppendChild($comment)
+        }
 
         $elementMatchType = $XmlDocument.CreateElement('MatchType')
         $TextNode = $XmlDocument.CreateTextNode($MatchType)

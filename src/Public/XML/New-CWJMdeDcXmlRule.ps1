@@ -29,7 +29,11 @@ function New-CWJMdeDcXmlRule
 
         [Parameter()]
         [switch]
-        $Compress
+        $Compress,
+
+        [Parameter()]
+        [switch]
+        $NoOmaUriComment
     )
 
     $XmlDocument = [System.Xml.XmlDocument]::new()
@@ -38,9 +42,12 @@ function New-CWJMdeDcXmlRule
     $elementPolicyRule.SetAttribute('Id', $Guid.ToString('B'))
     [void]$XmlDocument.AppendChild($elementPolicyRule)
 
-    $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyRules/%7b{0}%7d/RuleData ' -f $Guid.ToString()
-    $comment = $XmlDocument.CreateComment($commentText)
-    [void]$elementPolicyRule.AppendChild($comment)
+    if(-not $NoOmaUriComment)
+    {
+        $commentText = ' ./Vendor/MSFT/Defender/Configuration/DeviceControl/PolicyRules/%7b{0}%7d/RuleData ' -f $Guid.ToString()
+        $comment = $XmlDocument.CreateComment($commentText)
+        [void]$elementPolicyRule.AppendChild($comment)
+    }
 
     $elementName = $XmlDocument.CreateElement('Name')
     $TextNode = $XmlDocument.CreateTextNode($Name)
