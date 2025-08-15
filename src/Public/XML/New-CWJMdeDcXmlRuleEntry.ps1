@@ -20,29 +20,14 @@ function New-CWJMdeDcXmlRuleEntry
         $AccessMask, #TODO:mandatory?
         
         [Parameter()]
+        [ValidateNotNullOrEmpty()]
         $Sid, #TODO:multiple allowed?
         
         [Parameter()]
-        [System.Security.Principal.SecurityIdentifier]
-        $ComputerSid
+        [ValidateNotNullOrEmpty()]
+        $ComputerSid #TODO:multiple allowed?
     )
 
-    
-    # Detect whether $Sid is a valid Sid or GUID, or throw
-    if($PSBoundParameters.ContainsKey('Sid'))
-    {
-        $sidFormatted = $null
-
-        try{ $sidFormatted=[System.Security.Principal.SecurityIdentifier]::new($Sid) }catch{}
-        try{ $sidFormatted=[guid]::new($Sid)                                         }catch{}
-
-        if($null -eq $sidFormatted)
-        {
-            throw ('''{0}'' is not a valid SID or GUID.' -f $Sid)
-        }
-    }
-
-  
     $entry = [ordered]@{}
 
     $entry.Add('Id', $Guid.ToString('B'))
@@ -58,9 +43,27 @@ function New-CWJMdeDcXmlRuleEntry
                 #TODO: is there a better way to do this?
                 $value = (($value | Group-Object -NoElement).Name | Measure-Object -Sum).Sum
             }
-            elseif($_ -eq 'Sid')
+            # elseif($_ -eq 'Sid')
+            elseif($_ -in 'Sid','ComputerSid')
             {
-                $value = $sidFormatted
+                # Detect whether Sid/ComputerSid is a valid Sid or GUID, or throw
+
+                $valueNew = $null
+
+                $valueOriginal = $ExecutionContext.SessionState.PSVariable.Get($_).Value
+
+                try{ $valueNew=[System.Security.Principal.SecurityIdentifier]::new($valueOriginal) }catch{}
+                try{ $valueNew=[guid]::new($valueOriginal)                                         }catch{}
+
+                if($null -eq $valueNew)
+                {
+                    throw ('''{0}'' is not a valid SID or GUID for the {1} parameter' -f $valueOriginal, $_)
+                }
+                else
+                {
+                    $ExecutionContext.SessionState.PSVariable.Set($_, $valueNew)
+                }
+                $value = $valueNew
             }
             else
             {
