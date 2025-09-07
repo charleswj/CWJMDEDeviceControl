@@ -1,0 +1,9 @@
+Add-Type -Language CSharp -TypeDefinition @'
+namespace CWJ.Modules.CWJMDEDeviceControl
+{
+    public class xxx1
+    {
+        public int xxxx1;
+    }
+}
+'@
